@@ -311,7 +311,7 @@ static int set_cpi(const struct device *dev, uint32_t cpi) {
     }
 
     // Convert CPI to register value
-    uint8_t value = (cpi / 400);
+    uint8_t value = (cpi / 200);
     LOG_INF("Setting CPI to %u (reg value 0x%x)", cpi, value);
 
     /* set the cpi */
