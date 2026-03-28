@@ -691,7 +691,7 @@ if (speed < 2.5) {
     accel = 0.8;
 }
 // 中速は等速
-else if (speed < 3.0) {
+else if (speed < 5.0) {
     accel = 1.0;
 }
 // 高速は加速
