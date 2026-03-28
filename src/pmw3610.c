@@ -32,6 +32,7 @@ LOG_MODULE_REGISTER(pmw3610, CONFIG_INPUT_LOG_LEVEL);
 //////// Sensor initialization steps definition //////////
 // init is done in non-blocking manner (i.e., async), a //
 // delayable work is defined for this purpose           //
+static int32_t last_time = 0;
 enum pmw3610_init_step {
     ASYNC_INIT_STEP_POWER_UP,  // reset cs line and assert power-up reset
     ASYNC_INIT_STEP_CLEAR_OB1, // clear observation1 register for self-test check
@@ -675,6 +676,31 @@ static int pmw3610_report_data(const struct device *dev) {
         x = -raw_y;
         y = raw_x;
     }
+
+    // ===== 加速度処理ここから =====
+int32_t now = k_uptime_get();
+int32_t dt = now - last_time;
+last_time = now;
+
+// 速度（簡易）
+float speed = (abs(x) + abs(y)) / (dt + 1);
+
+// 加速度カーブ（調整ポイント）
+float accel = 1.0 + (speed * 0.25);
+
+// 上限制限（暴走防止）
+if (accel > 3.0) accel = 3.0;
+
+// 適用
+x = (int16_t)(x * accel);
+y = (int16_t)(y * accel);
+
+// クリップ（HID対策）
+if (x > 127) x = 127;
+if (x < -127) x = -127;
+if (y > 127) y = 127;
+if (y < -127) y = -127;
+// ===== 加速度処理ここまで =====
 
     if (IS_ENABLED(CONFIG_PMW3610_INVERT_X)) {
         x = -x;
