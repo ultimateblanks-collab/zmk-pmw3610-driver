@@ -687,8 +687,8 @@ float speed = (abs(x) + abs(y)) / (dt + 1);
 float accel;
 
 // 低速は減速
-if (speed < 0.5) {
-    accel = 0.4;
+if (speed < 1.0) {
+    accel = 0.6;
 }
 // 中速は等速
 else if (speed < 2.0) {
