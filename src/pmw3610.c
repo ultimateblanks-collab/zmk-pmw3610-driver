@@ -677,25 +677,36 @@ static int pmw3610_report_data(const struct device *dev) {
         y = raw_x;
     }
 
-    // ===== 加速度処理ここから =====
+// ===== 加速度＋減速処理 =====
 int32_t now = k_uptime_get();
 int32_t dt = now - last_time;
 last_time = now;
 
-// 速度（簡易）
 float speed = (abs(x) + abs(y)) / (dt + 1);
 
-// 加速度カーブ（調整ポイント）
-float accel = 1.0 + (speed * 0.25);
+float accel;
 
-// 上限制限（暴走防止）
+// 低速は減速
+if (speed < 0.5) {
+    accel = 0.4;
+}
+// 中速は等速
+else if (speed < 2.0) {
+    accel = 1.0;
+}
+// 高速は加速
+else {
+    accel = 1.0 + (speed * 0.25);
+}
+
+// 上限
 if (accel > 3.0) accel = 3.0;
 
 // 適用
 x = (int16_t)(x * accel);
 y = (int16_t)(y * accel);
 
-// クリップ（HID対策）
+// クリップ
 if (x > 127) x = 127;
 if (x < -127) x = -127;
 if (y > 127) y = 127;
