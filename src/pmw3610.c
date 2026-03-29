@@ -24,7 +24,6 @@
 #include <zmk/events/position_state_changed.h>
 #include <zmk/events/layer_state_changed.h>
 #include "pmw3610.h"
-#include <math.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(pmw3610, CONFIG_INPUT_LOG_LEVEL);
 
@@ -677,23 +676,26 @@ static int pmw3610_report_data(const struct device *dev) {
         y = raw_x;
     }
 
-// ===== 加速度＋減速処理 =====
-// ===== MX ERGO風カーブ =====
+// ===== MX ERGO風（軽量版・推奨） =====
 int32_t now = k_uptime_get();
 int32_t dt = now - last_time;
 last_time = now;
 
-// 速度（安定化のため少しスケーリング）
 float speed = (abs(x) + abs(y)) / (dt + 1);
 
-// --- パラメータ ---
-float min_accel = 0.4;   // 超低速（かなり遅く）
-float max_accel = 3.0;   // 最大加速
-float k = 1.2;           // 立ち上がりの鋭さ（重要）
-float mid = 2.0;         // 中心速度（重要）
+// パラメータ
+float min_accel = 0.4;
+float max_accel = 3.0;
+float gain = 1.5;   // 立ち上がり調整
+float offset = 1.5; // 中心位置
 
-// --- シグモイド（S字） ---
-float accel = min_accel + (max_accel - min_accel) / (1.0 + expf(-k * (speed - mid)));
+// 疑似シグモイド（超重要ポイント）
+float accel = min_accel +
+    (max_accel - min_accel) *
+    (speed / (speed + offset)) * gain;
+
+// 上限制限
+if (accel > max_accel) accel = max_accel;
 
 // 適用
 x = (int16_t)(x * accel);
