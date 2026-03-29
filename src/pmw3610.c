@@ -676,30 +676,30 @@ static int pmw3610_report_data(const struct device *dev) {
         y = raw_x;
     }
 
-// ===== MX ERGO風（軽量版・推奨） =====
+// ===== 完全整数版 MX ERGO風 =====
 int32_t now = k_uptime_get();
 int32_t dt = now - last_time;
 last_time = now;
 
-float speed = (abs(x) + abs(y)) / (dt + 1);
+// speed計算（スケーリングして精度確保）
+int32_t speed = (abs(x) + abs(y)) * 100 / (dt + 1);
 
-// パラメータ
-float min_accel = 0.4;
-float max_accel = 3.0;
-float gain = 1.5;   // 立ち上がり調整
-float offset = 1.5; // 中心位置
+// パラメータ（すべて整数）
+int32_t min_accel = 400;   // 0.4倍
+int32_t max_accel = 3000;  // 3.0倍
+int32_t offset = 150;      // 加速開始位置（重要）
+int32_t gain = 1000;       // 基本倍率
 
-// 疑似シグモイド（超重要ポイント）
-float accel = min_accel +
-    (max_accel - min_accel) *
-    (speed / (speed + offset)) * gain;
+// 疑似シグモイド
+int32_t accel = min_accel +
+    ( (max_accel - min_accel) * speed ) / (speed + offset);
 
 // 上限制限
 if (accel > max_accel) accel = max_accel;
 
-// 適用
-x = (int16_t)(x * accel);
-y = (int16_t)(y * accel);
+// 適用（1000で割る）
+x = (x * accel) / 1000;
+y = (y * accel) / 1000;
 
 // クリップ
 if (x > 127) x = 127;
