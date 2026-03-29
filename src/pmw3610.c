@@ -32,6 +32,9 @@ LOG_MODULE_REGISTER(pmw3610, CONFIG_INPUT_LOG_LEVEL);
 // init is done in non-blocking manner (i.e., async), a //
 // delayable work is defined for this purpose           //
 static int32_t last_time = 0;
+static int32_t subpixel_x = 0;
+static int32_t subpixel_y = 0;
+
 enum pmw3610_init_step {
     ASYNC_INIT_STEP_POWER_UP,  // reset cs line and assert power-up reset
     ASYNC_INIT_STEP_CLEAR_OB1, // clear observation1 register for self-test check
@@ -676,32 +679,58 @@ static int pmw3610_report_data(const struct device *dev) {
         y = raw_x;
     }
 
-// ===== 完全整数版 MX ERGO風 =====
+// ===== 高精度・完全整数版（サブピクセル＋滑らか化） =====
 int32_t now = k_uptime_get();
 int32_t dt = now - last_time;
 last_time = now;
 
-// speed計算（スケーリングして精度確保）
-int32_t speed = (abs(x) + abs(y)) * 100 / (dt + 1);
+// dt安定化（重要）
+if (dt < 1) dt = 1;
+if (dt > 20) dt = 20;
 
-// パラメータ（すべて整数）
+// speed計算（精度向上）
+int32_t speed = (abs(x) + abs(y)) * 100 / dt;
+
+// ---- speed平滑化（EMA）----
+static int32_t smooth_speed = 0;
+smooth_speed = (smooth_speed * 3 + speed) / 4;
+speed = smooth_speed;
+
+// ---- パラメータ ----
 int32_t min_accel = 400;   // 0.4倍
 int32_t max_accel = 3000;  // 3.0倍
-int32_t offset = 150;      // 加速開始位置（重要）
-int32_t gain = 1000;       // 基本倍率
+int32_t offset = 150;      // 加速開始位置
 
-// 疑似シグモイド
-int32_t accel = min_accel +
-    ( (max_accel - min_accel) * speed ) / (speed + offset);
+int32_t accel;
 
-// 上限制限
-if (accel > max_accel) accel = max_accel;
+// ---- 低速専用モード（超重要）----
+if (speed < 50) {
+    accel = 500; // 0.5倍（精密操作）
+} else {
+    // 疑似シグモイド
+    accel = min_accel +
+        ((max_accel - min_accel) * speed) / (speed + offset);
 
-// 適用（1000で割る）
-x = (x * accel) / 1000;
-y = (y * accel) / 1000;
+    if (accel > max_accel) accel = max_accel;
+}
 
-// クリップ
+// ---- サブピクセル蓄積（最重要）----
+subpixel_x += x * accel;
+subpixel_y += y * accel;
+
+// 出力値
+int16_t out_x = subpixel_x / 1000;
+int16_t out_y = subpixel_y / 1000;
+
+// 余り保持
+subpixel_x -= out_x * 1000;
+subpixel_y -= out_y * 1000;
+
+// 反映
+x = out_x;
+y = out_y;
+
+// ---- クリップ ----
 if (x > 127) x = 127;
 if (x < -127) x = -127;
 if (y > 127) y = 127;
