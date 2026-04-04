@@ -705,7 +705,7 @@ int32_t accel;
 
 // ---- 低速専用モード（超重要）----
 if (speed < 50) {
-    accel = 500; // 0.5倍（精密操作）
+    accel = 400; // 0.5倍（精密操作）
 } else {
     // 疑似シグモイド
     accel = min_accel +
