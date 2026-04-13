@@ -698,7 +698,7 @@ speed = smooth_speed;
 
 // ---- パラメータ ----
 int32_t min_accel = 400;   // 0.4倍
-int32_t max_accel = 2600;  // 3.0倍
+int32_t max_accel = 2300;  // 3.0倍
 int32_t offset = 220;      // 加速開始位置
 
 int32_t accel;
