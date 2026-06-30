@@ -704,8 +704,8 @@ int32_t offset = 220;      // 加速開始位置
 int32_t accel;
 
 // ---- 低速専用モード（超重要）----
-if (speed < 100) {
-    accel = 220; // 0.5倍（精密操作）
+if (speed < 80) {
+    accel = 250; // 0.5倍（精密操作）
 } else {
     // 疑似シグモイド
     accel = min_accel +
